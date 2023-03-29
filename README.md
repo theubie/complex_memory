@@ -12,3 +12,5 @@ Note: This does increase your context and will count against your max_tokens.
 If you are looking for a more simple extenion, you can check out my simple_memory extension: https://github.com/theubie/simple_memory
 
 Anyone wishing to help with the documentation I will give you over 9000 internet points.
+
+Note:  This does require Gradio>3.20.  As of the creation of this readme, text-generation-webui's requirement lists gradio v 3.23.0, so all new installs will work fine.  Older installs that have not updated to the latests requirements will fail to run the extension.
