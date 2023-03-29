@@ -2,12 +2,63 @@ import gradio as gr
 import modules.shared as shared
 import modules.chat as chat
 import pickle
+from modules.extensions import apply_extensions
+from modules.text_generation import encode, get_max_prompt_length
 
 # Initialize the list of keyword/memory pairs with a default pair
-pairs = [{"keywords": "new keyword(s)", "memory": "new memory"}, {"keywords": "debug", "memory": "This is debug data."}]
+pairs = [{"keywords": "new keyword(s)", "memory": "new memory", "always": False},
+         {"keywords": "debug", "memory": "This is debug data.", "always": False}]
 
 # our select
 memory_select = None
+
+
+def custom_generate_chat_prompt(user_input, max_new_tokens, name1, name2, context, chat_prompt_size, impersonate=False):
+    global pairs
+
+    # create out memory rows
+    context_injection = []
+    for pair in pairs:
+        if pair["always"]:
+            # Always inject it.
+            context_injection.append(pair["memory"])
+        else:
+            # Check to see if keywords are present.
+            keywords = pair["keywords"].split(",")
+            for keyword in keywords:
+                if keyword.strip() in user_input:
+                    # keyword is present in user_input
+                    context_injection.append(pair["memory"])
+                    break  # exit the loop if a match is found
+
+    # Add the context_injection
+    context_injection_string = ('\n'.join(context_injection)).strip()
+    rows = [f"{context_injection_string}\n{context.strip()}\n"]
+
+    if shared.soft_prompt:
+        chat_prompt_size -= shared.soft_prompt_tensor.shape[1]
+    max_length = min(get_max_prompt_length(max_new_tokens), chat_prompt_size)
+
+    i = len(shared.history['internal']) - 1
+    while i >= 0 and len(encode(''.join(rows), max_new_tokens)[0]) < max_length:
+        rows.insert(1, f"{name2}: {shared.history['internal'][i][1].strip()}\n")
+        if not (shared.history['internal'][i][0] == '<|BEGIN-VISIBLE-CHAT|>'):
+            rows.insert(1, f"{name1}: {shared.history['internal'][i][0].strip()}\n")
+        i -= 1
+
+    if not impersonate:
+        rows.append(f"{name1}: {user_input}\n")
+        rows.append(apply_extensions(f"{name2}:", "bot_prefix"))
+        limit = 3
+    else:
+        rows.append(f"{name1}:")
+        limit = 2
+
+    while len(rows) > limit and len(encode(''.join(rows), max_new_tokens)[0]) >= max_length:
+        rows.pop(1)
+
+    prompt = ''.join(rows)
+    return prompt
 
 
 def save_pairs():
@@ -23,6 +74,7 @@ def save_pairs():
 
 def load_pairs():
     global pairs
+    filename = ""
     try:
         if shared.character is not None and shared.character != "None":
             filename = f"{shared.character}_saved_memories.pkl"
@@ -35,9 +87,12 @@ def load_pairs():
     except FileNotFoundError:
         print(
             f"--Unable to load complex memories for character {shared.character}.  filename: {filename}.  Using defaults.")
-        pairs = [{"keywords": "new keyword(s)", "memory": "new memory"}]
+        pairs = [{"keywords": "new keyword(s)", "memory": "new memory", "always": False}]
 
-    print(f"pairs: {pairs}")
+    # Make sure old loaded data is updated
+    for pair in pairs:
+        if "always" not in pair:
+            pair["always"] = False
 
 
 def load_character_complex_memory_hijack(character_menu, name1, name2):
@@ -67,11 +122,12 @@ def ui():
     load_pairs()
 
     # Function to update the list of pairs
-    def update_pairs(keywords, memory, memory_select):
+    def update_pairs(keywords, memory, always, memory_select):
         for pair in pairs:
             if pair["keywords"] == memory_select:
                 pair["keywords"] = keywords
                 pair["memory"] = memory
+                pair["always"] = always
                 break
 
         # save the changes
@@ -86,8 +142,11 @@ def ui():
             if pair["keywords"] == keyword_value:
                 keywords = gr.Textbox.update(value=pair["keywords"])
                 memory = gr.Textbox.update(value=pair["memory"])
-                break
-        return [keywords, memory]
+                always = gr.Checkbox.update(value=pair["always"])
+                return [keywords, memory, always]
+
+        # Didn't find it, so return nothing and update nothing.
+        return
 
     c = gr.Column(elem_id="complex_memory")
     with c:
@@ -101,11 +160,15 @@ def ui():
         # Textbox to edit the memory for the current pair
         memory = gr.Textbox(lines=3, max_lines=7, label="Memory")
 
+        # Checkbox to select if memory is always on
+        always = gr.Checkbox(label="Always active")
+
         # make the call back for the memory_select now that the text boxes exist.
-        memory_select.change(update_ui, memory_select, [keywords, memory])
-        keywords.submit(update_pairs, [keywords, memory, memory_select], memory_select)
-        keywords.blur(update_pairs, [keywords, memory, memory_select], memory_select)
-        memory.change(update_pairs, [keywords, memory, memory_select], None)
+        memory_select.change(update_ui, memory_select, [keywords, memory, always])
+        keywords.submit(update_pairs, [keywords, memory, always, memory_select], memory_select)
+        keywords.blur(update_pairs, [keywords, memory, always, memory_select], memory_select)
+        memory.change(update_pairs, [keywords, memory, always, memory_select], None)
+        always.change(update_pairs, [keywords, memory, always, memory_select], None)
 
         # Button to add a new pair
         add_button = gr.Button("add")
@@ -136,7 +199,7 @@ def add_pair():
             break
 
     if not found:
-        pairs.append({"keywords": "new keyword(s)", "memory": "new memory"})
+        pairs.append({"keywords": "new keyword(s)", "memory": "new memory", "always": False})
 
     select = gr.Dropdown.update(choices=[pair["keywords"] for pair in pairs], value=pairs[-1]['keywords'])
 
@@ -150,7 +213,7 @@ def remove_pair(keyword):
             pairs.remove(pair)
             break
     if not pairs:
-        pairs = [{"keywords": "new keyword(s)", "memory": "new memory"}]
+        pairs = [{"keywords": "new keyword(s)", "memory": "new memory", "always": False}]
 
     select = gr.Dropdown.update(choices=[pair["keywords"] for pair in pairs], value=pairs[-1]['keywords'])
 
