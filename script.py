@@ -24,9 +24,10 @@ def custom_generate_chat_prompt(user_input, max_new_tokens, name1, name2, contex
             context_injection.append(pair["memory"])
         else:
             # Check to see if keywords are present.
-            keywords = pair["keywords"].split(",")
+            keywords = pair["keywords"].lower().split(",")
+            user_input_lower = user_input.lower()
             for keyword in keywords:
-                if keyword.strip() in user_input:
+                if keyword.strip() in user_input_lower:
                     # keyword is present in user_input
                     context_injection.append(pair["memory"])
                     break  # exit the loop if a match is found
@@ -155,7 +156,7 @@ def ui():
                                     elem_id="complext_memory_memory_select", multiselect=False)
 
         # Textbox to edit the keywords for the current pair
-        keywords = gr.Textbox(lines=1, max_lines=3, label="Keywords")
+        keywords = gr.Textbox(lines=1, max_lines=3, label="Keywords", placeholder="Keyword, Keyword, Keyword, ...")
 
         # Textbox to edit the memory for the current pair
         memory = gr.Textbox(lines=3, max_lines=7, label="Memory")
