@@ -23,7 +23,6 @@ def save_pairs():
 
 def load_pairs():
     global pairs
-    print("--debug in load_pairs")
     try:
         if shared.character is not None and shared.character != "None":
             filename = f"{shared.character}_saved_memories.pkl"
