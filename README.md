@@ -76,4 +76,4 @@ Our taco prompt is also present.
 *  Dynamic insertion of keywords only takes input from your *most recent message*. If you do not mention a keyword in your most recent message, the keyword will be unloaded from the `context`. You can check the `Always active` box mid-conversation if you decide you want to permanently include a keyword.
 *  The examples above were with the `alpaca-native-4bit` model. There were times it *did not* take the keywords into consideration. This is *the model being jank*, not the extension. You may have to `regenerate` responses to get exactly what you're looking for.
 
-Memory is currently stored in its own files and is based on the character selected. I am thinking of maybe storing them inside the character json to make it easy to create complex memory setups that can be more easily shared.
+Memory is stored in side of the character's json file.  This allows you to share characters with memories intact.  The character is still completely usable without the extension, as the extra data in the json is ignored by text-generation-webui.
