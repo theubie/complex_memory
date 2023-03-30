@@ -124,6 +124,9 @@ def load_pairs():
 
             if "memory" in data:
                 pairs = data["memory"]
+            else:
+                print(f"Unable to find memories in {filename}.  Using default.")
+                pairs = [{"keywords": "new keyword(s)", "memory": "new memory", "always": False}]
 
     except FileNotFoundError:
         print(
