@@ -1,4 +1,6 @@
 import gradio as gr
+import os
+import json
 import modules.shared as shared
 import modules.chat as chat
 import pickle
@@ -65,25 +67,63 @@ def custom_generate_chat_prompt(user_input, max_new_tokens, name1, name2, contex
 def save_pairs():
     global pairs
     if shared.character is not None and shared.character != "None":
-        filename = f"{shared.character}_saved_memories.pkl"
+        filename = f"characters/{shared.character}.json"
     else:
-        filename = "saved_memories.pkl"
+        filename = "extensions/complex_memory/saved_memories.json"
 
-    with open(f"extensions/complex_memory/{filename}", 'wb') as f:
-        pickle.dump(pairs, f)
+    # read the current character file
+    if os.path.exists(filename):
+        with open(filename, 'r') as f:
+            # Load the JSON data from the file into a Python dictionary
+            data = json.load(f)
+    else:
+        data = {}
+
+    # update the character file to include or update the memory
+    data["memory"] = pairs
+
+    # write the character file again
+    with open(filename, 'w') as f:
+        json.dump(data, f)
+
+    # with open(f"extensions/complex_memory/{filename}", 'wb') as f:
+    #     pickle.dump(pairs, f)
 
 
 def load_pairs():
     global pairs
     filename = ""
+
+    # check to see if old pickle file exists, and if so, load that.
+    if shared.character is not None and shared.character != "None":
+        filename = f"{shared.character}_saved_memories.pkl"
+        if os.path.exists(f"extensions/complex_memory/{filename}"):
+            print(f"Found old pickle file.  Loading old pickle file {filename}")
+            with open(f"extensions/complex_memory/{filename}", 'rb') as f:
+                print("Getting memory.")
+                pairs = pickle.load(f)
+                print(f"pairs: {pairs}")
+            print(f"Removing old pickle file {filename}")
+            os.remove(f"extensions/complex_memory/{filename}")
+            print("Saving data into character file.")
+            save_pairs()
+            print("Conversion complete.")
+            return  # we are done here.
+
+    # load the character file and get the memory from it, if it exists.
     try:
         if shared.character is not None and shared.character != "None":
-            filename = f"{shared.character}_saved_memories.pkl"
+            filename = f"characters/{shared.character}.json"
         else:
-            filename = "saved_memories.pkl"
+            filename = "extensions/complex_memory/saved_memories.json"
 
-        with open(f"extensions/complex_memory/{filename}", 'rb') as f:
-            pairs = pickle.load(f)
+        # read the current character file
+        with open(filename, 'r') as f:
+            # Load the JSON data from the file into a Python dictionary
+            data = json.load(f)
+
+            if "memory" in data:
+                pairs = data["memory"]
 
     except FileNotFoundError:
         print(
