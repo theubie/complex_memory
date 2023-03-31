@@ -11,12 +11,15 @@ from modules.text_generation import encode, get_max_prompt_length
 pairs = [{"keywords": "new keyword(s)", "memory": "new memory", "always": False},
          {"keywords": "debug", "memory": "This is debug data.", "always": False}]
 
+memory_settings = {"position": "Before Context"}
+
 # our select
 memory_select = None
 
 
 def custom_generate_chat_prompt(user_input, max_new_tokens, name1, name2, context, chat_prompt_size, impersonate=False):
     global pairs
+    global memory_settings
 
     # create out memory rows
     context_injection = []
@@ -36,7 +39,11 @@ def custom_generate_chat_prompt(user_input, max_new_tokens, name1, name2, contex
 
     # Add the context_injection
     context_injection_string = ('\n'.join(context_injection)).strip()
-    rows = [f"{context_injection_string}\n{context.strip()}\n"]
+
+    if memory_settings["position"] == "Before Context":
+        rows = [f"{context_injection_string}\n{context.strip()}\n"]
+    elif memory_settings["position"] == "After Context":
+        rows = [f"{context.strip()}\n{context_injection_string}\n"]
 
     if shared.soft_prompt:
         chat_prompt_size -= shared.soft_prompt_tensor.shape[1]
@@ -139,6 +146,32 @@ def load_pairs():
             pair["always"] = False
 
 
+def save_settings():
+    global memory_settings
+    filename = "extensions/complex_memory/settings.json"
+
+    with open(filename, 'w') as f:
+        json.dump(memory_settings, f)
+
+
+def load_settings():
+    global memory_settings
+    filename = "extensions/complex_memory/settings.json"
+
+    try:
+        with open(filename, 'r') as f:
+            # Load the JSON data from the file into a Python dictionary
+            data = json.load(f)
+
+        if data:
+            memory_settings = data
+
+    except FileNotFoundError:
+        memory_settings = {"position": "Before Context"}
+
+    return memory_settings["position"]
+
+
 def load_character_complex_memory_hijack(character_menu, name1, name2):
     # load the character like normal
     result = chat.load_character(character_menu, name1, name2)
@@ -156,6 +189,10 @@ def pairs_loaded():
     select = gr.Dropdown.update(choices=[pair["keywords"] for pair in pairs], value=pairs[-1]['keywords'])
 
     return select
+
+
+def setup():
+    load_settings()
 
 
 def ui():
@@ -192,8 +229,8 @@ def ui():
         # Didn't find it, so return nothing and update nothing.
         return
 
-    c = gr.Column(elem_id="complex_memory")
-    with c:
+    t_m = gr.Tab("Memory", elem_id="complex_memory_tab_memory")
+    with t_m:
         # Dropdown menu to select the current pair
         memory_select = gr.Dropdown(choices=[pair["keywords"] for pair in pairs], label="Select Memory",
                                     elem_id="complext_memory_memory_select", multiselect=False)
@@ -223,6 +260,13 @@ def ui():
         remove_button.click(remove_pair, memory_select, memory_select).then(update_ui, memory_select,
                                                                             [keywords, memory])
 
+    t_s = gr.Tab("Settings", elem_id="complex_memory_tab_settings")
+    with t_s:
+        position = gr.Radio(["Before Context", "After Context"],
+                            value=memory_settings["position"],
+                            label="Memory Position in Prompt")
+        position.change(update_settings, position, None)
+
     # We need to hijack load_character in order to load our memories based on characters.
     shared.gradio['character_menu'].change(load_character_complex_memory_hijack,
                                            [shared.gradio['character_menu'], shared.gradio['name1'],
@@ -231,7 +275,13 @@ def ui():
                                             shared.gradio['display']]).then(pairs_loaded, None, memory_select)
 
     # Return the UI elements wrapped in a Gradio column
-    return c
+    # return c
+
+
+def update_settings(position):
+    global memory_settings
+    memory_settings["position"] = position
+    save_settings()
 
 
 def add_pair():
