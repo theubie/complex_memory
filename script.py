@@ -17,7 +17,7 @@ memory_settings = {"position": "Before Context"}
 memory_select = None
 
 
-def custom_generate_chat_prompt(user_input, max_new_tokens, name1, name2, context, chat_prompt_size, impersonate=False):
+def custom_generate_chat_prompt(user_input, max_new_tokens, name1, name2, context, chat_prompt_size, impersonate=False, also_return_rows=False):
     global pairs
     global memory_settings
 
@@ -68,7 +68,11 @@ def custom_generate_chat_prompt(user_input, max_new_tokens, name1, name2, contex
         rows.pop(1)
 
     prompt = ''.join(rows)
-    return prompt
+
+    if also_return_rows:
+        return prompt, rows
+    else:
+        return prompt
 
 
 def save_pairs():
