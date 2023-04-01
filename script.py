@@ -95,7 +95,7 @@ def save_pairs():
 
     # write the character file again
     with open(filename, 'w') as f:
-        json.dump(data, f)
+        json.dump(data, f, indent=2)
 
     # with open(f"extensions/complex_memory/{filename}", 'wb') as f:
     #     pickle.dump(pairs, f)
@@ -155,7 +155,7 @@ def save_settings():
     filename = "extensions/complex_memory/settings.json"
 
     with open(filename, 'w') as f:
-        json.dump(memory_settings, f)
+        json.dump(memory_settings, f, indent=2)
 
 
 def load_settings():
@@ -232,44 +232,44 @@ def ui():
 
         # Didn't find it, so return nothing and update nothing.
         return
+    with gr.Accordion("", open=True):
+        t_m = gr.Tab("Memory", elem_id="complex_memory_tab_memory")
+        with t_m:
+            # Dropdown menu to select the current pair
+            memory_select = gr.Dropdown(choices=[pair["keywords"] for pair in pairs], label="Select Memory",
+                                        elem_id="complext_memory_memory_select", multiselect=False)
 
-    t_m = gr.Tab("Memory", elem_id="complex_memory_tab_memory")
-    with t_m:
-        # Dropdown menu to select the current pair
-        memory_select = gr.Dropdown(choices=[pair["keywords"] for pair in pairs], label="Select Memory",
-                                    elem_id="complext_memory_memory_select", multiselect=False)
+            # Textbox to edit the keywords for the current pair
+            keywords = gr.Textbox(lines=1, max_lines=3, label="Keywords", placeholder="Keyword, Keyword, Keyword, ...")
 
-        # Textbox to edit the keywords for the current pair
-        keywords = gr.Textbox(lines=1, max_lines=3, label="Keywords", placeholder="Keyword, Keyword, Keyword, ...")
+            # Textbox to edit the memory for the current pair
+            memory = gr.Textbox(lines=3, max_lines=7, label="Memory")
 
-        # Textbox to edit the memory for the current pair
-        memory = gr.Textbox(lines=3, max_lines=7, label="Memory")
+            # Checkbox to select if memory is always on
+            always = gr.Checkbox(label="Always active")
 
-        # Checkbox to select if memory is always on
-        always = gr.Checkbox(label="Always active")
+            # make the call back for the memory_select now that the text boxes exist.
+            memory_select.change(update_ui, memory_select, [keywords, memory, always])
+            keywords.submit(update_pairs, [keywords, memory, always, memory_select], memory_select)
+            keywords.blur(update_pairs, [keywords, memory, always, memory_select], memory_select)
+            memory.change(update_pairs, [keywords, memory, always, memory_select], None)
+            always.change(update_pairs, [keywords, memory, always, memory_select], None)
 
-        # make the call back for the memory_select now that the text boxes exist.
-        memory_select.change(update_ui, memory_select, [keywords, memory, always])
-        keywords.submit(update_pairs, [keywords, memory, always, memory_select], memory_select)
-        keywords.blur(update_pairs, [keywords, memory, always, memory_select], memory_select)
-        memory.change(update_pairs, [keywords, memory, always, memory_select], None)
-        always.change(update_pairs, [keywords, memory, always, memory_select], None)
+            # Button to add a new pair
+            add_button = gr.Button("add")
+            add_button.click(add_pair, None, memory_select)
 
-        # Button to add a new pair
-        add_button = gr.Button("add")
-        add_button.click(add_pair, None, memory_select)
+            # Button to remove the current pair
+            remove_button = gr.Button("remove")
+            remove_button.click(remove_pair, memory_select, memory_select).then(update_ui, memory_select,
+                                                                                [keywords, memory])
 
-        # Button to remove the current pair
-        remove_button = gr.Button("remove")
-        remove_button.click(remove_pair, memory_select, memory_select).then(update_ui, memory_select,
-                                                                            [keywords, memory])
-
-    t_s = gr.Tab("Settings", elem_id="complex_memory_tab_settings")
-    with t_s:
-        position = gr.Radio(["Before Context", "After Context"],
-                            value=memory_settings["position"],
-                            label="Memory Position in Prompt")
-        position.change(update_settings, position, None)
+        t_s = gr.Tab("Settings", elem_id="complex_memory_tab_settings")
+        with t_s:
+            position = gr.Radio(["Before Context", "After Context"],
+                                value=memory_settings["position"],
+                                label="Memory Position in Prompt")
+            position.change(update_settings, position, None)
 
     # We need to hijack load_character in order to load our memories based on characters.
     shared.gradio['character_menu'].change(load_character_complex_memory_hijack,
