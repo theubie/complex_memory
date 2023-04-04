@@ -272,12 +272,16 @@ def ui():
             position.change(update_settings, position, None)
 
     # We need to hijack load_character in order to load our memories based on characters.
-    shared.gradio['character_menu'].change(load_character_complex_memory_hijack,
-                                           [shared.gradio['character_menu'], shared.gradio['name1'],
-                                            shared.gradio['name2']],
-                                           [shared.gradio['name2'], shared.gradio['context'],
-                                            shared.gradio['display']]).then(pairs_loaded, None, memory_select)
+    # shared.gradio['character_menu'].change(load_character_complex_memory_hijack,
+    #                                        [shared.gradio['character_menu'], shared.gradio['name1'],
+    #                                         shared.gradio['name2']],
+    #                                        [shared.gradio['name2'], shared.gradio['context'],
+    #                                         shared.gradio['display']]).then(pairs_loaded, None, memory_select)
 
+    shared.gradio['character_menu'].change(load_character_complex_memory_hijack,
+                                           [shared.gradio[k] for k in ['character_menu', 'name1', 'name2']],
+                                           [shared.gradio[k] for k in
+                                            ['name1', 'name2', 'greeting', 'context', 'display']]).then(pairs_loaded, None, memory_select)
     # Return the UI elements wrapped in a Gradio column
     # return c
 
