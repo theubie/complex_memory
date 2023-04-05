@@ -176,9 +176,9 @@ def load_settings():
     return memory_settings["position"]
 
 
-def load_character_complex_memory_hijack(character_menu, name1, name2):
+def load_character_complex_memory_hijack(character_menu, name1, name2, mode):
     # load the character like normal
-    result = chat.load_character(character_menu, name1, name2)
+    result = chat.load_character(character_menu, name1, name2, mode)
 
     # Our code
     load_pairs()
@@ -279,9 +279,8 @@ def ui():
     #                                         shared.gradio['display']]).then(pairs_loaded, None, memory_select)
 
     shared.gradio['character_menu'].change(load_character_complex_memory_hijack,
-                                           [shared.gradio[k] for k in ['character_menu', 'name1', 'name2'. 'Chat mode']],
-                                           [shared.gradio[k] for k in
-                                            ['name1', 'name2', 'greeting', 'context', 'display']]).then(pairs_loaded, None, memory_select)
+                                           [shared.gradio[k] for k in ['character_menu', 'name1', 'name2', 'Chat mode']],
+                                           [shared.gradio[k] for k in ['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display']]).then(pairs_loaded, None, memory_select)
     # Return the UI elements wrapped in a Gradio column
     # return c
 
