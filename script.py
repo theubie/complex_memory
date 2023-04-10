@@ -18,7 +18,7 @@ memory_select = None
 
 
 def custom_generate_chat_prompt(user_input, max_new_tokens, name1, name2, context, chat_prompt_size, is_instruct, end_of_turn="",
-                                impersonate=False, also_return_rows=False):
+                                impersonate=False, also_return_rows=False, _continue=False):
     global pairs
     global memory_settings
 
@@ -59,7 +59,10 @@ def custom_generate_chat_prompt(user_input, max_new_tokens, name1, name2, contex
 
     i = len(shared.history['internal'])-1
     while i >= 0 and len(encode(''.join(rows), max_new_tokens)[0]) < max_length:
-        rows.insert(1, f"{prefix2}{shared.history['internal'][i][1].strip()}{end_of_turn}\n")
+        if _continue and i == len(shared.history['internal']) - 1:
+            rows.insert(1, f"{prefix2}{shared.history['internal'][i][1]}")
+        else:
+            rows.insert(1, f"{prefix2}{shared.history['internal'][i][1].strip()}{end_of_turn}\n")
         string = shared.history['internal'][i][0]
         if string not in ['', '<|BEGIN-VISIBLE-CHAT|>']:
             rows.insert(1, f"{prefix1}{string.strip()}{end_of_turn}\n")
@@ -68,6 +71,8 @@ def custom_generate_chat_prompt(user_input, max_new_tokens, name1, name2, contex
     if impersonate:
         rows.append(f"{prefix1.strip() if not is_instruct else prefix1}")
         limit = 2
+    elif _continue:
+        limit = 3
     else:
 
         # Adding the user message
