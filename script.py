@@ -17,10 +17,18 @@ memory_settings = {"position": "Before Context"}
 memory_select = None
 
 
-def custom_generate_chat_prompt(user_input, max_new_tokens, name1, name2, context, chat_prompt_size, is_instruct, end_of_turn="",
-                                impersonate=False, also_return_rows=False, _continue=False):
+def custom_generate_chat_prompt(user_input, state, end_of_turn="", **kwargs):
+    impersonate = kwargs['impersonate'] if 'impersonate' in kwargs else False
+    _continue = kwargs['_continue'] if '_continue' in kwargs else False
+    also_return_rows = kwargs['also_return_rows'] if 'also_return_rows' in kwargs else False
+    is_instruct = state['mode'] == 'instruct'
     global pairs
     global memory_settings
+
+    chat_prompt_size = state['chat_prompt_size']
+    if shared.soft_prompt:
+        chat_prompt_size -= shared.soft_prompt_tensor.shape[1]
+    max_length = min(get_max_prompt_length(state), chat_prompt_size)
 
     # create out memory rows
     context_injection = []
@@ -42,23 +50,22 @@ def custom_generate_chat_prompt(user_input, max_new_tokens, name1, name2, contex
     context_injection_string = ('\n'.join(context_injection)).strip()
 
     if memory_settings["position"] == "Before Context":
-        rows = [f"{context_injection_string}\n{context.strip()}\n"]
+        rows = [f"{context_injection_string}\n{state['context'].strip()}\n"]
     elif memory_settings["position"] == "After Context":
-        rows = [f"{context.strip()}\n{context_injection_string}\n"]
+        rows = [f"{state['context'].strip()}\n{context_injection_string}\n"]
 
     if shared.soft_prompt:
-        chat_prompt_size -= shared.soft_prompt_tensor.shape[1]
-    max_length = min(get_max_prompt_length(max_new_tokens), chat_prompt_size)
+        state['chat_prompt_size'] -= shared.soft_prompt_tensor.shape[1]
 
     if is_instruct:
-        prefix1 = f"{name1}\n"
-        prefix2 = f"{name2}\n"
+        prefix1 = f"{state['name1']}\n"
+        prefix2 = f"{state['name2']}\n"
     else:
-        prefix1 = f"{name1}: "
-        prefix2 = f"{name2}: "
+        prefix1 = f"{state['name1']}: "
+        prefix2 = f"{state['name2']}: "
 
     i = len(shared.history['internal'])-1
-    while i >= 0 and len(encode(''.join(rows), max_new_tokens)[0]) < max_length:
+    while i >= 0 and len(encode(''.join(rows))[0]) < max_length:
         if _continue and i == len(shared.history['internal']) - 1:
             rows.insert(1, f"{prefix2}{shared.history['internal'][i][1]}")
         else:
@@ -69,7 +76,7 @@ def custom_generate_chat_prompt(user_input, max_new_tokens, name1, name2, contex
         i -= 1
 
     if impersonate:
-        rows.append(f"{prefix1.strip() if not is_instruct else prefix1}")
+        rows.append(f"{prefix1.strip() if not state['is_instruct'] else prefix1}")
         limit = 2
     elif _continue:
         limit = 3
@@ -83,10 +90,7 @@ def custom_generate_chat_prompt(user_input, max_new_tokens, name1, name2, contex
         rows.append(apply_extensions(f"{prefix2.strip() if not is_instruct else prefix2}", "bot_prefix"))
         limit = 3
 
-    while len(rows) > limit and len(encode(''.join(rows), max_new_tokens)[0]) >= max_length:
-        rows.pop(1)
-
-    while len(rows) > limit and len(encode(''.join(rows), max_new_tokens)[0]) >= max_length:
+    while len(rows) > limit and len(encode(''.join(rows))[0]) >= max_length:
         rows.pop(1)
 
     prompt = ''.join(rows)
@@ -301,7 +305,7 @@ def ui():
     #                                         shared.gradio['display']]).then(pairs_loaded, None, memory_select)
 
     shared.gradio['character_menu'].change(load_character_complex_memory_hijack,
-                                           [shared.gradio[k] for k in ['character_menu', 'name1', 'name2', 'Chat mode']],
+                                           [shared.gradio[k] for k in ['character_menu', 'name1', 'name2', 'mode']],
                                            [shared.gradio[k] for k in ['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display']]).then(pairs_loaded, None, memory_select)
     # Return the UI elements wrapped in a Gradio column
     # return c
