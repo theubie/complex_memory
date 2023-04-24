@@ -22,6 +22,7 @@ def custom_generate_chat_prompt(user_input, state, end_of_turn="", **kwargs):
     _continue = kwargs['_continue'] if '_continue' in kwargs else False
     also_return_rows = kwargs['also_return_rows'] if 'also_return_rows' in kwargs else False
     is_instruct = state['mode'] == 'instruct'
+    global pairs
     rows = [f"{state['context'].strip()}\n"]
     min_rows = 3
     
