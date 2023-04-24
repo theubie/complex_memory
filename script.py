@@ -23,12 +23,10 @@ def custom_generate_chat_prompt(user_input, state, end_of_turn="", **kwargs):
     also_return_rows = kwargs['also_return_rows'] if 'also_return_rows' in kwargs else False
     is_instruct = state['mode'] == 'instruct'
     global pairs
+    rows = [f"{state['context'].strip()}\n"]
+    min_rows = 3
+    
     global memory_settings
-
-    chat_prompt_size = state['chat_prompt_size']
-    if shared.soft_prompt:
-        chat_prompt_size -= shared.soft_prompt_tensor.shape[1]
-    max_length = min(get_max_prompt_length(state), chat_prompt_size)
 
     # create out memory rows
     context_injection = []
@@ -54,9 +52,12 @@ def custom_generate_chat_prompt(user_input, state, end_of_turn="", **kwargs):
     elif memory_settings["position"] == "After Context":
         rows = [f"{state['context'].strip()}\n{context_injection_string}\n"]
 
+    # Finding the maximum prompt size
+    chat_prompt_size = state['chat_prompt_size']-len(context_injection_string)
     if shared.soft_prompt:
-        state['chat_prompt_size'] -= shared.soft_prompt_tensor.shape[1]
+        chat_prompt_size -= shared.soft_prompt_tensor.shape[1]
 
+    max_length = min(get_max_prompt_length(state), chat_prompt_size)
     if is_instruct:
         prefix1 = f"{state['name1']}\n"
         prefix2 = f"{state['name2']}\n"
@@ -64,37 +65,36 @@ def custom_generate_chat_prompt(user_input, state, end_of_turn="", **kwargs):
         prefix1 = f"{state['name1']}: "
         prefix2 = f"{state['name2']}: "
 
-    i = len(shared.history['internal'])-1
+    i = len(shared.history['internal']) - 1
     while i >= 0 and len(encode(''.join(rows))[0]) < max_length:
         if _continue and i == len(shared.history['internal']) - 1:
             rows.insert(1, f"{prefix2}{shared.history['internal'][i][1]}")
         else:
-            rows.insert(1, f"{prefix2}{shared.history['internal'][i][1].strip()}{end_of_turn}\n")
+            rows.insert(1, f"{prefix2}{shared.history['internal'][i][1].strip()}{state['end_of_turn']}\n")
+
         string = shared.history['internal'][i][0]
         if string not in ['', '<|BEGIN-VISIBLE-CHAT|>']:
-            rows.insert(1, f"{prefix1}{string.strip()}{end_of_turn}\n")
+            this_prefix1 = prefix1.replace('<|round|>', f'{i}')  # for ChatGLM
+            rows.insert(1, f"{this_prefix1}{string.strip()}{state['end_of_turn']}\n")
+
         i -= 1
 
     if impersonate:
-        rows.append(f"{prefix1.strip() if not state['is_instruct'] else prefix1}")
-        limit = 2
-    elif _continue:
-        limit = 3
-    else:
-
+        min_rows = 2
+        rows.append(f"{prefix1.strip() if not is_instruct else prefix1}")
+    elif not _continue:
         # Adding the user message
         if len(user_input) > 0:
-            rows.append(f"{prefix1}{user_input}{end_of_turn}\n")
+            this_prefix1 = prefix1.replace('<|round|>', f'{len(shared.history["internal"])}')  # for ChatGLM
+            rows.append(f"{this_prefix1}{user_input}{state['end_of_turn']}\n")
 
         # Adding the Character prefix
-        rows.append(apply_extensions(f"{prefix2.strip() if not is_instruct else prefix2}", "bot_prefix"))
-        limit = 3
+        rows.append(apply_extensions("bot_prefix", f"{prefix2.strip() if not is_instruct else prefix2}"))
 
-    while len(rows) > limit and len(encode(''.join(rows))[0]) >= max_length:
+    while len(rows) > min_rows and len(encode(''.join(rows))[0]) >= max_length:
         rows.pop(1)
 
     prompt = ''.join(rows)
-
     if also_return_rows:
         return prompt, rows
     else:
