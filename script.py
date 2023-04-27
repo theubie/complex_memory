@@ -4,9 +4,9 @@ import json
 import modules.shared as shared
 import modules.chat as chat
 import pickle
-from modules.chat import replace_all
 from modules.extensions import apply_extensions
 from modules.text_generation import encode, get_max_prompt_length
+from modules.chat import generate_chat_prompt
 
 # Initialize the list of keyword/memory pairs with a default pair
 pairs = [{"keywords": "new keyword(s)", "memory": "new memory", "always": False},
@@ -18,15 +18,8 @@ memory_settings = {"position": "Before Context"}
 memory_select = None
 
 
-def custom_generate_chat_prompt(user_input, state, **kwargs):
-    impersonate = kwargs['impersonate'] if 'impersonate' in kwargs else False
-    _continue = kwargs['_continue'] if '_continue' in kwargs else False
-    also_return_rows = kwargs['also_return_rows'] if 'also_return_rows' in kwargs else False
-    is_instruct = state['mode'] == 'instruct'
-    global pairs
-    rows = [f"{state['context'].strip()}\n"]
-    min_rows = 3
-    
+def custom_generate_chat_prompt(user_input, state, turn_template="", **kwargs):
+    global pairs    
     global memory_settings
 
     # create out memory rows
@@ -49,70 +42,11 @@ def custom_generate_chat_prompt(user_input, state, **kwargs):
     context_injection_string = ('\n'.join(context_injection)).strip()
 
     if memory_settings["position"] == "Before Context":
-        rows = [f"{context_injection_string}\n{state['context'].strip()}\n"]
+        state["context"] = f"{context_injection_string}\n{state['context']}\n"
     elif memory_settings["position"] == "After Context":
-        rows = [f"{state['context'].strip()}\n{context_injection_string}\n"]
+        state["context"] = f"{state['context']}\n{context_injection_string}\n"
 
-    # Finding the maximum prompt size
-    chat_prompt_size = state['chat_prompt_size']-len(context_injection_string)
-    if shared.soft_prompt:
-        chat_prompt_size -= shared.soft_prompt_tensor.shape[1]
-
-    max_length = min(get_max_prompt_length(state), chat_prompt_size)
-
-    # Building the turn templates
-    if 'turn_template' not in state or state['turn_template'] == '':
-        if is_instruct:
-            template = '<|user|>\n<|user-message|>\n<|bot|>\n<|bot-message|>\n'
-        else:
-            template = '<|user|>: <|user-message|>\n<|bot|>: <|bot-message|>\n'
-    else:
-        template = state['turn_template'].replace(r'\n', '\n')
-
-    replacements = {
-        '<|user|>': state['name1'].strip(),
-        '<|bot|>': state['name2'].strip(),
-    }
-
-    user_turn = replace_all(template.split('<|bot|>')[0], replacements)
-    bot_turn = replace_all('<|bot|>' + template.split('<|bot|>')[1], replacements)
-    user_turn_stripped = replace_all(user_turn.split('<|user-message|>')[0], replacements)
-    bot_turn_stripped = replace_all(bot_turn.split('<|bot-message|>')[0], replacements)
-
-    # Building the prompt
-    i = len(shared.history['internal']) - 1
-    while i >= 0 and len(encode(''.join(rows))[0]) < max_length:
-        if _continue and i == len(shared.history['internal']) - 1:
-            rows.insert(1, bot_turn_stripped + shared.history['internal'][i][1].strip())
-        else:
-            rows.insert(1, bot_turn.replace('<|bot-message|>', shared.history['internal'][i][1].strip()))
-
-        string = shared.history['internal'][i][0]
-        if string not in ['', '<|BEGIN-VISIBLE-CHAT|>']:
-            rows.insert(1, replace_all(user_turn, {'<|user-message|>': string.strip(), '<|round|>': str(i)}))
-
-        i -= 1
-
-    if impersonate:
-        min_rows = 2
-        rows.append(user_turn_stripped.rstrip(' '))
-    elif not _continue:
-        # Adding the user message
-        if len(user_input) > 0:
-            rows.append(replace_all(user_turn, {'<|user-message|>': user_input.strip(),
-                                                '<|round|>': str(len(shared.history["internal"]))}))
-
-        # Adding the Character prefix
-        rows.append(apply_extensions("bot_prefix", bot_turn_stripped.rstrip(' ')))
-
-    while len(rows) > min_rows and len(encode(''.join(rows))[0]) >= max_length:
-        rows.pop(1)
-
-    prompt = ''.join(rows)
-    if also_return_rows:
-        return prompt, rows
-    else:
-        return prompt
+    return generate_chat_prompt(user_input, state, **kwargs)
 
 
 def save_pairs():
