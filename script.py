@@ -19,7 +19,7 @@ memory_select = None
 
 
 def custom_generate_chat_prompt(user_input, state, turn_template="", **kwargs):
-    global pairs    
+    global pairs
     global memory_settings
 
     # create out memory rows
@@ -254,7 +254,8 @@ def ui():
 
     shared.gradio['character_menu'].change(load_character_complex_memory_hijack,
                                            [shared.gradio[k] for k in ['character_menu', 'name1', 'name2', 'mode']],
-                                           [shared.gradio[k] for k in ['name1', 'name2', 'character_picture', 'greeting', 'context', 'turn_template', 'display']])
+                                           [shared.gradio[k] for k in ['name1', 'name2', 'character_picture', 'greeting', 'context', 'turn_template', 'display']])\
+        .then(pairs_loaded, None, memory_select)
 
     # Return the UI elements wrapped in a Gradio column
     # return c
