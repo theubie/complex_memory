@@ -1,7 +1,8 @@
 import gradio as gr
 import os
 import json
-import modules.shared as shared
+from modules import shared
+# import modules.shared as shared
 import modules.chat as chat
 import pickle
 from modules.extensions import apply_extensions
@@ -150,9 +151,9 @@ def load_settings():
     return memory_settings["position"]
 
 
-def load_character_complex_memory_hijack(character_menu, name1, name2, mode):
+def load_character_complex_memory_hijack(character_menu, name1, name2, mode, style):
     # load the character like normal
-    result = chat.load_character(character_menu, name1, name2, mode)
+    result = chat.load_character(character_menu, name1, name2, mode, style)
 
     # Our code
     load_pairs()
@@ -206,6 +207,7 @@ def ui():
 
         # Didn't find it, so return nothing and update nothing.
         return
+
     with gr.Accordion("", open=True):
         t_m = gr.Tab("Memory", elem_id="complex_memory_tab_memory")
         with t_m:
@@ -246,16 +248,8 @@ def ui():
             position.change(update_settings, position, None)
 
     # We need to hijack load_character in order to load our memories based on characters.
-    # shared.gradio['character_menu'].change(load_character_complex_memory_hijack,
-    #                                        [shared.gradio['character_menu'], shared.gradio['name1'],
-    #                                         shared.gradio['name2']],
-    #                                        [shared.gradio['name2'], shared.gradio['context'],
-    #                                         shared.gradio['display']]).then(pairs_loaded, None, memory_select)
-
-    shared.gradio['character_menu'].change(load_character_complex_memory_hijack,
-                                           [shared.gradio[k] for k in ['character_menu', 'name1', 'name2', 'mode']],
-                                           [shared.gradio[k] for k in ['name1', 'name2', 'character_picture', 'greeting', 'context', 'turn_template', 'display']])\
-        .then(pairs_loaded, None, memory_select)
+    if 'character_menu' in shared.gradio:
+        shared.gradio['character_menu'].change(load_character_complex_memory_hijack, [shared.gradio[k] for k in ['character_menu', 'name1', 'name2', 'mode', 'chat_style']], [shared.gradio[k] for k in ['name1', 'name2', 'character_picture', 'greeting', 'context', 'turn_template', 'display']]).then(pairs_loaded, None, memory_select)
 
     # Return the UI elements wrapped in a Gradio column
     # return c
