@@ -19,7 +19,7 @@ memory_settings = {"position": "Before Context"}
 memory_select = None
 
 
-def custom_generate_chat_prompt(user_input, state, turn_template="", **kwargs):
+def custom_generate_chat_prompt(user_input, state, **kwargs):
     global pairs
     global memory_settings
 
@@ -151,9 +151,9 @@ def load_settings():
     return memory_settings["position"]
 
 
-def load_character_complex_memory_hijack(character_menu, name1, name2, mode):
+def load_character_complex_memory_hijack(character_menu, name1, name2):
     # load the character like normal
-    result = chat.load_character(character_menu, name1, name2, mode)
+    result = chat.load_character(character_menu, name1, name2, False)
 
     # Our code
     load_pairs()
@@ -249,13 +249,13 @@ def ui():
 
     # We need to hijack load_character in order to load our memories based on characters.
 
-
     if 'character_menu' in shared.gradio:
         shared.gradio['character_menu'].change(
-            load_character_complex_memory_hijack, [shared.gradio[k] for k in ['character_menu', 'name1', 'name2', 'mode']],
+            load_character_complex_memory_hijack,
+            [shared.gradio[k] for k in ['character_menu', 'name1', 'name2']],
             [shared.gradio[k] for k in ['name1', 'name2', 'character_picture', 'greeting', 'context', 'dummy']]).then(
             chat.redraw_html, shared.reload_inputs, shared.gradio['display']).then(pairs_loaded, None, memory_select)
-        # shared.gradio['character_menu'].change(load_character_complex_memory_hijack, [shared.gradio[k] for k in ['character_menu', 'name1', 'name2', 'mode']], [shared.gradio[k] for k in ['name1', 'name2', 'character_picture', 'greeting', 'context', 'turn_template', 'display']]).then(pairs_loaded, None, memory_select)
+
 
     # Return the UI elements wrapped in a Gradio column
     # return c
