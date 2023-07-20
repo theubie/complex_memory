@@ -52,7 +52,7 @@ def custom_generate_chat_prompt(user_input, state, **kwargs):
 
 def save_pairs():
     global pairs
-    if shared.character is not None and shared.character != "None":
+    if shared.settings["character"] is not None and shared.settings["character"] != "None":
         filename = f"characters/{shared.character}.json"
     else:
         filename = "extensions/complex_memory/saved_memories.json"
@@ -81,8 +81,8 @@ def load_pairs():
     filename = ""
 
     # check to see if old pickle file exists, and if so, load that.
-    if shared.character is not None and shared.character != "None":
-        filename = f"{shared.character}_saved_memories.pkl"
+    if shared.settings["character"] is not None and shared.settings["character"] != "None":
+        filename = f"{shared.settings['character']}_saved_memories.pkl"
         if os.path.exists(f"extensions/complex_memory/{filename}"):
             print(f"Found old pickle file.  Loading old pickle file {filename}")
             with open(f"extensions/complex_memory/{filename}", 'rb') as f:
@@ -98,8 +98,8 @@ def load_pairs():
 
     # load the character file and get the memory from it, if it exists.
     try:
-        if shared.character is not None and shared.character != "None":
-            filename = f"characters/{shared.character}.json"
+        if shared.settings["character"] is not None and shared.settings["character"] != "None":
+            filename = f"characters/{shared.settings['character']}.json"
         else:
             filename = "extensions/complex_memory/saved_memories.json"
 
@@ -116,7 +116,8 @@ def load_pairs():
 
     except FileNotFoundError:
         print(
-            f"--Unable to load complex memories for character {shared.character}.  filename: {filename}.  Using defaults.")
+            f"--Unable to load complex memories for character {shared.settings['character']}.  filename: {filename}.  Using defaults.")
+
         pairs = [{"keywords": "new keyword(s)", "memory": "new memory", "always": False}]
 
     # Make sure old loaded data is updated
