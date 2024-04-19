@@ -9,6 +9,9 @@ from modules.extensions import apply_extensions
 from modules.text_generation import encode, get_max_prompt_length
 from modules.chat import generate_chat_prompt
 
+# Initialize the current character
+character = shared.settings["character"]
+
 # Initialize the list of keyword/memory pairs with a default pair
 pairs = [{"keywords": "new keyword(s)", "memory": "new memory", "always": False},
          {"keywords": "debug", "memory": "This is debug data.", "always": False}]
@@ -51,9 +54,9 @@ def custom_generate_chat_prompt(user_input, state, **kwargs):
 
 
 def save_pairs():
-    global pairs
-    if shared.settings["character"] is not None and shared.settings["character"] != "None":
-        filename = f"characters/{shared.settings['character']}.yaml"
+    global pairs, character
+    if character is not None and character != "None":
+        filename = f"characters/{character}.yaml"
     else:
         filename = "extensions/complex_memory/saved_memories.yaml"
 
@@ -77,12 +80,12 @@ def save_pairs():
 
 
 def load_pairs():
-    global pairs
+    global pairs, character
     filename = ""
 
     # check to see if old pickle file exists, and if so, load that.
-    if shared.settings["character"] is not None and shared.settings["character"] != "None":
-        filename = f"{shared.settings['character']}_saved_memories.pkl"
+    if character is not None and character != "None":
+        filename = f"{character}_saved_memories.pkl"
         if os.path.exists(f"extensions/complex_memory/{filename}"):
             print(f"Found old pickle file.  Loading old pickle file {filename}")
             with open(f"extensions/complex_memory/{filename}", 'rb') as f:
@@ -92,14 +95,14 @@ def load_pairs():
             print(f"Removing old pickle file {filename}")
             os.remove(f"extensions/complex_memory/{filename}")
             print("Saving data into character file.")
-            save_pairs()
+            save_pairs(character)
             print("Conversion complete.")
             return  # we are done here.
 
     # load the character file and get the memory from it, if it exists.
     try:
-        if shared.settings["character"] is not None and shared.settings["character"] != "None":
-            filename = f"characters/{shared.settings['character']}.yaml"
+        if character is not None and character != "None":
+            filename = f"characters/{character}.yaml"
         else:
             filename = "extensions/complex_memory/saved_memories.yaml"
 
@@ -116,7 +119,7 @@ def load_pairs():
 
     except FileNotFoundError:
         print(
-            f"--Unable to load complex memories for character {shared.settings['character']}.  filename: {filename}.  Using defaults.")
+            f"--Unable to load complex memories for character {character}.  filename: {filename}.  Using defaults.")
 
         pairs = [{"keywords": "new keyword(s)", "memory": "new memory", "always": False}]
 
@@ -153,14 +156,13 @@ def load_settings():
 
 
 def load_character_complex_memory_hijack(character_menu, name1, name2):
+    global character
     # load the character like normal
-    result = chat.load_character(character_menu, name1, name2)
-
+    #result = chat.load_character(character_menu, name1, name2)
+    character = character_menu
+    
     # Our code
     load_pairs()
-
-    # return the result of normal load character
-    return result
 
 
 def pairs_loaded():
@@ -254,7 +256,7 @@ def ui():
         shared.gradio['character_menu'].change(
             load_character_complex_memory_hijack,
             [shared.gradio[k] for k in ['character_menu', 'name1', 'name2']],
-            [shared.gradio[k] for k in ['name1', 'name2', 'character_picture', 'greeting', 'context']]).then(
+            None).then(
             chat.redraw_html, shared.reload_inputs, shared.gradio['display']).then(pairs_loaded, None, memory_select)
 
 
