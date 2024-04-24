@@ -95,7 +95,7 @@ def load_pairs():
             print(f"Removing old pickle file {filename}")
             os.remove(f"extensions/complex_memory/{filename}")
             print("Saving data into character file.")
-            save_pairs(character)
+            save_pairs()
             print("Conversion complete.")
             return  # we are done here.
 
@@ -155,14 +155,17 @@ def load_settings():
     return memory_settings["position"]
 
 
-def load_character_complex_memory_hijack(character_menu, name1, name2):
+def load_character_complex_memory_hijack(character_menu):
     global character
     # load the character like normal
-    #result = chat.load_character(character_menu, name1, name2)
+    # result = chat.load_character(character_menu, name1, name2)
     character = character_menu
-    
+
     # Our code
     load_pairs()
+
+    # return the result of normal load character
+    # return result
 
 
 def pairs_loaded():
@@ -255,10 +258,9 @@ def ui():
     if 'character_menu' in shared.gradio:
         shared.gradio['character_menu'].change(
             load_character_complex_memory_hijack,
-            [shared.gradio[k] for k in ['character_menu', 'name1', 'name2']],
+            [shared.gradio['character_menu']],
             None).then(
             chat.redraw_html, shared.reload_inputs, shared.gradio['display']).then(pairs_loaded, None, memory_select)
-
 
     # Return the UI elements wrapped in a Gradio column
     # return c
